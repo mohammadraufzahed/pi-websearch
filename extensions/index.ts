@@ -1,36 +1,21 @@
 /**
- * pi-websearch — free web search for pi agents (DuckDuckGo, no key).
+ * pi-websearch — free web search for pi agents.
  *
  *   web_search  — query → top results (title/url/snippet)
  *   web_fetch   — fetch a page → text extract
+ *
+ * Search uses DuckDuckGo as the primary provider (free, no API key).
+ * The provider layer in providers/ allows Brave/Google to be added
+ * later without changing the tools.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { getProvider } from "./providers/index.ts";
+import { formatResults } from "./providers/types.ts";
 
 const UA =
 	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
-
-async function ddg(query: string, limit: number): Promise<string> {
-	const url = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
-	const r = await fetch(url, {
-		headers: { "User-Agent": UA },
-		signal: AbortSignal.timeout(20_000),
-	});
-	const html = await r.text();
-	const results: string[] = [];
-	const re =
-		/<a[^>]+class="result-link"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result-snippet"[^>]*>([\s\S]*?)<\/td>/g;
-	let m;
-	while ((m = re.exec(html)) && results.length < limit) {
-		const clean = (s: string) =>
-			s.replace(/<[^>]+>/g, "").replace(/&\w+;/g, " ").trim();
-		results.push(
-			`- ${clean(m[2])}\n  ${m[1]}\n  ${clean(m[3])}`,
-		);
-	}
-	return results.length ? results.join("\n") : "(no results parsed)";
-}
 
 export default function piWebsearch(pi: ExtensionAPI) {
 	pi.registerTool({
@@ -45,8 +30,19 @@ export default function piWebsearch(pi: ExtensionAPI) {
 		}),
 		async execute(_id, params) {
 			try {
-				const out = await ddg(params.query, params.limit ?? 6);
-				return { content: [{ type: "text" as const, text: out }] };
+				const provider = getProvider();
+				const results = await provider.search(
+					params.query,
+					params.limit ?? 6,
+				);
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: formatResults(results),
+						},
+					],
+				};
 			} catch (e) {
 				return {
 					content: [
