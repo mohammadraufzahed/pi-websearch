@@ -42,12 +42,14 @@ export default function piWebsearch(pi: ExtensionAPI) {
 							text: formatResults(results),
 						},
 					],
+					details: undefined,
 				};
 			} catch (e) {
 				return {
 					content: [
 						{ type: "text" as const, text: `search failed: ${e}` },
 					],
+					details: undefined,
 				};
 			}
 		},
@@ -85,12 +87,14 @@ export default function piWebsearch(pi: ExtensionAPI) {
 					content: [
 						{ type: "text" as const, text: `HTTP ${r.status}\n\n${t}` },
 					],
+					details: undefined,
 				};
 			} catch (e) {
 				return {
 					content: [
 						{ type: "text" as const, text: `fetch failed: ${e}` },
 					],
+					details: undefined,
 				};
 			}
 		},
